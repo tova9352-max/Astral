@@ -131,13 +131,14 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                 },
                 bottomBar = {
                     NavigationBar(containerColor = Color(0xF20D0C0F), tonalElevation = 0.dp) {
-                        listOf("HOME", "MEMORIES", "CONNECTIONS", "VAULT").forEach { tab ->
+                        listOf("HOME", "MEMORIES", "TIMELINE", "CONNECTIONS", "VAULT").forEach { tab ->
                             NavigationBarItem(
                                 selected = selectedTab == tab,
                                 onClick = { selectedTab = tab },
                                 icon = { Icon(when(tab) {
                                     "MEMORIES" -> Icons.Default.Archive
                                     "CONNECTIONS" -> Icons.Default.Hub
+                                    "TIMELINE" -> Icons.Default.CalendarToday
                                     "VAULT" -> Icons.Default.Lock
                                     else -> Icons.Default.Search
                                 }, contentDescription = tab) },
@@ -234,6 +235,9 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         }
                     }
                     }
+                    if (selectedTab == "TIMELINE") {
+                        item { TimelinePreview(memories) }
+                    }
                     if (selectedTab == "CONNECTIONS") {
                         item { ConnectionsPreview(memories) }
                     }
@@ -314,6 +318,7 @@ private fun ModuleHero(tab: String, count: Int) {
             Text(
                 when (tab) {
                     "MEMORIES" -> "Tu colección personal, organizada en un solo lugar."
+                    "TIMELINE" -> "Tus recuerdos organizados cronológicamente, día a día."
                     "CONNECTIONS" -> "Un espacio para descubrir cómo se relacionan tus recuerdos."
                     else -> "Tu espacio privado está preparado para la siguiente fase de seguridad."
                 },
@@ -321,7 +326,7 @@ private fun ModuleHero(tab: String, count: Int) {
             )
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatPill(if (tab == "MEMORIES") "$count RECUERDOS" else if (tab == "CONNECTIONS") "RED PERSONAL" else "LOCAL FIRST")
+                StatPill(if (tab == "MEMORIES") "$count RECUERDOS" else if (tab == "TIMELINE") "$count EVENTOS" else if (tab == "CONNECTIONS") "RED PERSONAL" else "LOCAL FIRST")
                 StatPill(if (tab == "VAULT") "CLOUD OPCIONAL" else "CORE ACTIVO")
             }
         }
@@ -333,6 +338,56 @@ private fun StatPill(label: String) {
     Box(Modifier.clip(CircleShape).background(Red.copy(alpha = .10f))
         .border(1.dp, Red.copy(alpha = .25f), CircleShape).padding(horizontal = 10.dp, vertical = 7.dp)) {
         Text(label, color = Red, fontSize = 8.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun TimelinePreview(memories: List<Memory>) {
+    val groups = remember(memories) {
+        memories.sortedByDescending { it.createdAt }
+            .groupBy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.createdAt)) }
+    }
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Text("CHRONOLOGICAL MEMORY", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatPill("${memories.size} RECUERDOS")
+            StatPill("${groups.size} DÍAS")
+        }
+        Spacer(Modifier.height(14.dp))
+        if (memories.isEmpty()) {
+            Text("Tu línea de tiempo aparecerá aquí cuando guardes tu primer recuerdo.", color = Muted, fontSize = 11.sp, lineHeight = 17.sp)
+        } else {
+            groups.forEach { (_, dayMemories) ->
+                val dateLabel = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
+                    .format(Date(dayMemories.first().createdAt)).uppercase(Locale.getDefault())
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp).background(Red, CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                    Text(dateLabel, color = Red, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(7.dp))
+                dayMemories.forEachIndexed { index, memory ->
+                    Row(Modifier.fillMaxWidth().padding(start = 3.dp, bottom = 10.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(14.dp)) {
+                            Box(Modifier.size(6.dp).background(Color(0xFFFF8793), CircleShape))
+                            if (index != dayMemories.lastIndex) Box(Modifier.width(1.dp).height(48.dp).background(Red.copy(alpha = .35f)))
+                        }
+                        Spacer(Modifier.width(9.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(memory.createdAt)), color = Muted, fontSize = 9.sp)
+                            Text(memory.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (memory.content.isNotBlank()) {
+                                Text(memory.content, color = Muted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            Text(memory.category + if (memory.attachments.isNotBlank()) "  •  ARCHIVOS ADJUNTOS" else "", color = Red.copy(alpha = .8f), fontSize = 8.sp, letterSpacing = .7.sp)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(7.dp))
+            }
+        }
+        Text("Ordenado por fecha de creación en este dispositivo.", color = Muted, fontSize = 9.sp)
     }
 }
 
