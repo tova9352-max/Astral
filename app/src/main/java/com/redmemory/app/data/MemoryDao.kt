@@ -18,4 +18,10 @@ interface MemoryDao {
 
     @Query("UPDATE memories SET isFavorite = :favorite WHERE id = :memoryId")
     suspend fun setFavorite(memoryId: Long, favorite: Boolean)
+
+    @Query("UPDATE memories SET title = :title, content = :content, category = :category WHERE id = :memoryId")
+    suspend fun updateDetails(memoryId: Long, title: String, content: String, category: String)
+
+    @Query("DELETE FROM memories WHERE id = :memoryId")
+    suspend fun delete(memoryId: Long)
 }
