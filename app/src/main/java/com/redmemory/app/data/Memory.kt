@@ -11,5 +11,6 @@ data class Memory(
     val content: String,
     val createdAt: Long = System.currentTimeMillis(),
     val kind: String = "TEXT",
-    @ColumnInfo(defaultValue = "''") val attachments: String = ""
+    @ColumnInfo(defaultValue = "''") val attachments: String = "",
+    @ColumnInfo(defaultValue = "'GENERAL'") val category: String = "GENERAL"
 )
