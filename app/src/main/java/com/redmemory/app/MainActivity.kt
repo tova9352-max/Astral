@@ -532,6 +532,18 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
     )
 }
 
+private fun formatVideoDuration(file: File): String {
+    return runCatching {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(file.absolutePath)
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val seconds = duration / 1000
+            (seconds / 60).toString() + ":" + (seconds % 60).toString().padStart(2, '0')
+        } finally { retriever.release() }
+    }.getOrDefault("Video")
+}
+
 private fun copyUrisToPrivateStorage(context: Context, uris: List<Uri>, category: String): String {
     if (uris.isEmpty()) return ""
     val directory = File(context.filesDir, "memories/$category").apply { mkdirs() }
@@ -546,6 +558,11 @@ private fun copyUrisToPrivateStorage(context: Context, uris: List<Uri>, category
                 "image/png" -> "png"
                 "image/webp" -> "webp"
                 "image/jpeg" -> "jpg"
+                "video/mp4" -> "mp4"
+                "video/webm" -> "webm"
+                "video/3gpp" -> "3gp"
+                "video/quicktime" -> "mov"
+                "video/x-matroska" -> "mkv"
                 else -> mime.substringAfter("/", "").substringBefore(";").takeIf { it.matches(Regex("[A-Za-z0-9]{2,5}")) } ?: if (category == "images") "jpg" else "file"
             }
             val destination = File(directory, "${category}_${System.currentTimeMillis()}_${(0..9999).random()}.$extension")
