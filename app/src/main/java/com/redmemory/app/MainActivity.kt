@@ -1,6 +1,14 @@
 package com.redmemory.app
 
 import android.os.Bundle
+import android.content.Context
+import android.net.Uri
+import android.graphics.BitmapFactory
+import java.io.File
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -22,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -175,8 +184,11 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
             if (showCapture) {
                 CaptureDialog(
                     onDismiss = { showCapture = false },
-                    onSave = { title, body ->
-                        scope.launch { dao.insert(Memory(title = title, content = body)) }
+                    onSave = { title, body, imageUris ->
+                        scope.launch {
+                            val savedPaths = copyImagesToPrivateStorage(this@MainActivity, imageUris)
+                            dao.insert(Memory(title = title, content = body, attachments = savedPaths))
+                        }
                         showCapture = false
                     }
                 )
@@ -225,18 +237,33 @@ private fun GlassPanel(modifier: Modifier = Modifier, content: @Composable Colum
 
 @Composable
 private fun MemoryCard(memory: Memory) {
+    val imageFiles = remember(memory.attachments) {
+        memory.attachments.split("\n").filter { it.isNotBlank() }.map { File(it) }.filter { it.exists() }
+    }
     GlassPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Red.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Archive, null, tint = Red, modifier = Modifier.size(18.dp))
+                Icon(if (imageFiles.isNotEmpty()) Icons.Default.Image else Icons.Default.Archive, null, tint = Red, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(memory.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(4.dp))
-                Text(memory.content, color = Muted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (memory.content.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(memory.content, color = Muted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+                if (imageFiles.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        imageFiles.take(4).forEach { file ->
+                            val bitmap = remember(file.absolutePath) { BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap() }
+                            if (bitmap != null) Image(bitmap, contentDescription = "Imagen guardada", modifier = Modifier.size(68.dp).clip(RoundedCornerShape(12.dp)))
+                        }
+                        if (imageFiles.size > 4) Text("+${imageFiles.size - 4}", color = Red, modifier = Modifier.align(Alignment.CenterVertically))
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
-                Text(SimpleDateFormat("dd MMM · HH:mm", Locale.getDefault()).format(Date(memory.createdAt)).uppercase(), color = Red.copy(alpha = .85f), fontSize = 9.sp, letterSpacing = 1.sp)
+                Text(SimpleDateFormat("dd MMM · HH:mm", Locale.getDefault()).format(Date(memory.createdAt)).uppercase() + if (imageFiles.isNotEmpty()) "  •  ${imageFiles.size} IMAGES" else "", color = Red.copy(alpha = .85f), fontSize = 9.sp, letterSpacing = 1.sp)
             }
         }
     }
@@ -256,9 +283,13 @@ private fun EmptyState(onCapture: () -> Unit) {
 }
 
 @Composable
-private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>) -> Unit) {
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
+    var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        selectedImages = (selectedImages + uris).distinct()
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF171317),
@@ -267,13 +298,35 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String) -> Uni
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(title, { title = it }, label = { Text("Título") }, singleLine = true)
                 OutlinedTextField(body, { body = it }, label = { Text("¿Qué quieres recordar?") }, minLines = 3)
+                OutlinedButton(onClick = { imagePicker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Image, contentDescription = null, tint = Red)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (selectedImages.isEmpty()) "AÑADIR IMÁGENES" else "${selectedImages.size} IMÁGENES SELECCIONADAS", color = Color.White)
+                }
+                if (selectedImages.isNotEmpty()) Text("Las imágenes se guardarán de forma privada en este dispositivo.", color = Muted, fontSize = 11.sp)
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (title.isNotBlank() && body.isNotBlank()) onSave(title.trim(), body.trim()) }) {
+            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages) }) {
                 Text("GUARDAR", color = Red, letterSpacing = 1.sp)
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("CANCELAR", color = Muted) } }
     )
+}
+
+private fun copyImagesToPrivateStorage(context: Context, uris: List<Uri>): String {
+    if (uris.isEmpty()) return ""
+    val directory = File(context.filesDir, "memories/images").apply { mkdirs() }
+    return uris.mapNotNull { uri ->
+        runCatching {
+            val extension = context.contentResolver.getType(uri)?.substringAfter("/")?.substringBefore(";")
+                ?.takeIf { it.matches(Regex("[A-Za-z0-9]{2,5}")) } ?: "jpg"
+            val destination = File(directory, "image_${System.currentTimeMillis()}_${(0..9999).random()}.$extension")
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                destination.outputStream().use { output -> input.copyTo(output) }
+            }
+            destination.absolutePath.takeIf { destination.exists() && destination.length() > 0 }
+        }.getOrNull()
+    }.joinToString("\n")
 }
