@@ -235,7 +235,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                     }
                     }
                     if (selectedTab == "CONNECTIONS") {
-                        item { ConnectionsPreview(memories.size) }
+                        item { ConnectionsPreview(memories) }
                     }
                     if (selectedTab == "VAULT") {
                         item { VaultPreview() }
@@ -337,31 +337,53 @@ private fun StatPill(label: String) {
 }
 
 @Composable
-private fun ConnectionsPreview(count: Int) {
-    GlassPanel(Modifier.fillMaxWidth()) {
-        Text("MEMORY NETWORK", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
-        Spacer(Modifier.height(10.dp))
-        Box(Modifier.fillMaxWidth().height(210.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize()) {
-                val c = center
-                val nodes = listOf(
-                    Offset(c.x, c.y), Offset(c.x - 92.dp.toPx(), c.y - 48.dp.toPx()),
-                    Offset(c.x + 90.dp.toPx(), c.y - 54.dp.toPx()), Offset(c.x - 72.dp.toPx(), c.y + 65.dp.toPx()),
-                    Offset(c.x + 76.dp.toPx(), c.y + 68.dp.toPx())
-                )
-                nodes.drop(1).forEach { drawLine(Red.copy(alpha = .35f), c, it, strokeWidth = 1.5.dp.toPx()) }
-                nodes.forEachIndexed { index, point ->
-                    val radius = if (index == 0) 17.dp.toPx() else 9.dp.toPx()
-                    drawCircle(if (index == 0) Red else Color(0xFFFF7180), radius + 8.dp.toPx(), point, alpha = .12f)
-                    drawCircle(if (index == 0) Red else Color(0xFFFF7180), radius, point)
-                    drawCircle(Color.White.copy(alpha = .8f), radius * .28f, point)
+private fun ConnectionsPreview(memories: List<Memory>) {
+    val connections = remember(memories) {
+        val keywordMap = memories.associate { it.id to memoryKeywords(it) }
+        buildList {
+            for (i in memories.indices) {
+                for (j in i + 1 until memories.size) {
+                    val shared = (keywordMap[memories[i].id].orEmpty() intersect keywordMap[memories[j].id].orEmpty())
+                        .sorted()
+                    if (shared.isNotEmpty()) add(Triple(memories[i], memories[j], shared))
                 }
             }
-        }
-        Text(if (count == 0) "Guarda recuerdos para comenzar a construir tu red." else "La visualización de relaciones inteligentes llegará en una próxima actualización.",
-            color = Muted, fontSize = 11.sp, lineHeight = 17.sp)
+        }.sortedWith(compareByDescending<Triple<Memory, Memory, List<String>>> { it.third.size }
+            .thenByDescending { minOf(it.first.createdAt, it.second.createdAt) })
+    }
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Text("MEMORY NETWORK", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
         Spacer(Modifier.height(8.dp))
-        StatPill("$count NODOS DE MEMORIA")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatPill("${memories.size} NODOS")
+            StatPill("${connections.size} CONEXIONES")
+        }
+        Spacer(Modifier.height(14.dp))
+        when {
+            memories.isEmpty() -> Text("Guarda recuerdos para comenzar a construir tu red.", color = Muted, fontSize = 11.sp, lineHeight = 17.sp)
+            connections.isEmpty() -> Text("Aún no hay palabras clave compartidas. Guarda recuerdos relacionados por tema para crear conexiones.", color = Muted, fontSize = 11.sp, lineHeight = 17.sp)
+            else -> {
+                Text("RELACIONES DETECTADAS POR PALABRAS COMPARTIDAS", color = Red, fontSize = 9.sp, letterSpacing = 1.sp)
+                Spacer(Modifier.height(8.dp))
+                connections.take(12).forEach { (first, second, shared) ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(first.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(second.title, color = Color(0xFFFFA0AA), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Spacer(Modifier.height(4.dp))
+                            Text("EN COMÚN: " + shared.take(5).joinToString(" · "), color = Muted, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        Text("+${shared.size}", color = Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    if (connections.indexOf(Triple(first, second, shared)) != connections.take(12).lastIndex) {
+                        Divider(color = Color.White.copy(alpha = .07f))
+                    }
+                }
+                if (connections.size > 12) Text("+ ${connections.size - 12} conexiones más", color = Muted, fontSize = 10.sp)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Las conexiones se calculan en el dispositivo mediante coincidencias de palabras; no son relaciones semánticas generadas por IA.", color = Muted, fontSize = 9.sp, lineHeight = 14.sp)
     }
 }
 
@@ -687,6 +709,24 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
     )
 }
 
+
+private fun memoryKeywords(memory: Memory): Set<String> {
+    val stopWords = setOf(
+        "para", "como", "desde", "hasta", "donde", "cuando", "porque", "sobre", "entre",
+        "esta", "este", "estos", "estas", "tiene", "tengo", "tener", "hacer", "hecho",
+        "the", "and", "with", "from", "that", "this", "have", "your", "you", "for",
+        "una", "uno", "unos", "unas", "por", "con", "sin", "del", "las", "los", "que",
+        "pero", "más", "muy", "mis", "sus", "les", "hay", "ser", "fue", "son", "era"
+    )
+    val normalized = java.text.Normalizer.normalize(
+        (memory.title + " " + memory.content).lowercase(Locale.ROOT),
+        java.text.Normalizer.Form.NFD
+    ).replace(Regex("\\p{Mn}+"), "")
+        .replace(Regex("[^a-z0-9]+"), " ")
+    return normalized.split(Regex("\\s+"))
+        .filter { it.length >= 4 && it !in stopWords }
+        .toSet()
+}
 
 private fun memorySearchScore(memory: Memory, rawQuery: String): Int {
     if (rawQuery.isBlank()) return 1
