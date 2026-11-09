@@ -9,5 +9,6 @@ data class Memory(
     val title: String,
     val content: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val kind: String = "TEXT"
+    val kind: String = "TEXT",
+    val attachments: String = ""
 )
