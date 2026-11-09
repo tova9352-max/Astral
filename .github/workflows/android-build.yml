@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'RED-MEMORY-alpha01-source.zip.b64'
+      - 'RED-MEMORY-alpha01-source.zip'
   workflow_dispatch:
 
 permissions:
@@ -37,8 +37,7 @@ jobs:
       - name: Extract source project
         run: |
           mkdir -p source
-          base64 -d RED-MEMORY-alpha01-source.zip.b64 > /tmp/red-memory.zip
-          unzip -q /tmp/red-memory.zip -d source
+          unzip -q RED-MEMORY-alpha01-source.zip -d source
 
       - name: Build debug APK
         run: gradle -p source/RED-MEMORY :app:assembleDebug --no-daemon
