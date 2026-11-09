@@ -515,11 +515,16 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
                     Spacer(Modifier.width(8.dp))
                     Text(if (selectedDocuments.isEmpty()) "AÑADIR PDF / DOCUMENTOS" else "${selectedDocuments.size} DOCUMENTOS SELECCIONADOS", color = Color.White)
                 }
-                if (selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty()) Text("Los archivos se guardarán de forma privada en este dispositivo.", color = Muted, fontSize = 11.sp)
+                OutlinedButton(onClick = { videoPicker.launch(arrayOf("video/*")) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Red)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (selectedVideos.isEmpty()) "AÑADIR VIDEOS" else selectedVideos.size.toString() + " VIDEOS SELECCIONADOS", color = Color.White)
+                }
+                if (selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty() || selectedVideos.isNotEmpty()) Text("Los archivos se guardarán de forma privada en este dispositivo.", color = Muted, fontSize = 11.sp)
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages, selectedDocuments, category) }) {
+            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty() || selectedVideos.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages, selectedDocuments, selectedVideos, category) }) {
                 Text("GUARDAR", color = Red, letterSpacing = 1.sp)
             }
         },
