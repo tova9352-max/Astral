@@ -2,7 +2,7 @@ name: RED MEMORY Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/red-memory-05-multimedia']
     paths:
       - 'app/**'
       - '*.gradle.kts'
