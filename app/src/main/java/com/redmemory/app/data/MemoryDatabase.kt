@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Memory::class], version = 3, exportSchema = true)
+@Database(entities = [Memory::class], version = 4, exportSchema = true)
 abstract class MemoryDatabase : RoomDatabase() {
     abstract fun memoryDao(): MemoryDao
 
@@ -22,13 +22,18 @@ abstract class MemoryDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE memories ADD COLUMN category TEXT NOT NULL DEFAULT 'GENERAL'")
             }
         }
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE memories ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         @Volatile private var INSTANCE: MemoryDatabase? = null
         fun get(context: Context): MemoryDatabase = INSTANCE ?: synchronized(this) {
             INSTANCE ?: Room.databaseBuilder(
                 context.applicationContext,
                 MemoryDatabase::class.java,
                 "red-memory.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
         }
     }
 }
