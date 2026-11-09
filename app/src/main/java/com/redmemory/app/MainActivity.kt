@@ -103,11 +103,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
     var memoryToEdit by remember { mutableStateOf<Memory?>(null) }
     var memoryToDelete by remember { mutableStateOf<Memory?>(null) }
     val filtered = remember(memories, search, selectedCategory, favoritesOnly) {
-        memories.filter { memory ->
-            val matchesSearch = search.isBlank() || memory.title.contains(search, true) || memory.content.contains(search, true) || memory.attachments.contains(search, true)
+        memories.mapNotNull { memory ->
+            val score = memorySearchScore(memory, search)
             val matchesCategory = selectedCategory == "ALL" || memory.category == selectedCategory
-            matchesSearch && matchesCategory && (!favoritesOnly || memory.isFavorite)
-        }
+            if (score > 0 && matchesCategory && (!favoritesOnly || memory.isFavorite)) memory to score else null
+        }.sortedWith(compareByDescending<Pair<Memory, Int>> { it.second }.thenByDescending { it.first.createdAt })
+         .map { it.first }
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
@@ -684,6 +685,34 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("CANCELAR", color = Muted) } }
     )
+}
+
+
+private fun memorySearchScore(memory: Memory, rawQuery: String): Int {
+    if (rawQuery.isBlank()) return 1
+    fun normalize(value: String): String = java.text.Normalizer.normalize(value.lowercase(Locale.ROOT), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
+    val query = normalize(rawQuery)
+    if (query.isBlank()) return 1
+    val title = normalize(memory.title)
+    val content = normalize(memory.content)
+    val attachments = normalize(memory.attachments)
+    val all = "$title $content $attachments"
+    val terms = query.split(Regex("\\s+")).filter { it.length > 1 }.distinct()
+    var score = 0
+    if (title.contains(query)) score += 12
+    if (content.contains(query)) score += 7
+    if (attachments.contains(query)) score += 3
+    terms.forEach { term ->
+        if (title.split(Regex("\\s+")).any { it == term }) score += 6
+        else if (title.contains(term)) score += 3
+        if (content.contains(term)) score += 2
+        if (attachments.contains(term)) score += 1
+    }
+    if (terms.size > 1 && terms.all { all.contains(it) }) score += 5
+    return score
 }
 
 private fun formatVideoDuration(file: File): String {
