@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Image
@@ -83,7 +84,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
     var selectedTab by remember { mutableStateOf("HOME") }
     val filtered = remember(memories, search) {
         if (search.isBlank()) memories else memories.filter {
-            it.title.contains(search, true) || it.content.contains(search, true)
+            it.title.contains(search, true) || it.content.contains(search, true) || it.attachments.contains(search, true)
         }
     }
 
@@ -186,10 +187,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
             if (showCapture) {
                 CaptureDialog(
                     onDismiss = { showCapture = false },
-                    onSave = { title, body, imageUris ->
+                    onSave = { title, body, imageUris, documentUris ->
                         scope.launch {
-                            val savedPaths = copyImagesToPrivateStorage(context, imageUris)
-                            dao.insert(Memory(title = title, content = body, attachments = savedPaths))
+                            val savedImages = copyUrisToPrivateStorage(context, imageUris, "images")
+                            val savedDocuments = copyUrisToPrivateStorage(context, documentUris, "documents")
+                            val allAttachments = listOf(savedImages, savedDocuments).filter { it.isNotBlank() }.joinToString("\n")
+                            dao.insert(Memory(title = title, content = body, attachments = allAttachments))
                         }
                         showCapture = false
                     }
@@ -239,13 +242,15 @@ private fun GlassPanel(modifier: Modifier = Modifier, content: @Composable Colum
 
 @Composable
 private fun MemoryCard(memory: Memory) {
-    val imageFiles = remember(memory.attachments) {
+    val attachmentFiles = remember(memory.attachments) {
         memory.attachments.split("\n").filter { it.isNotBlank() }.map { File(it) }.filter { it.exists() }
     }
+    val imageFiles = attachmentFiles.filter { it.extension.lowercase() in listOf("jpg", "jpeg", "png", "webp", "gif", "heic") }
+    val documentFiles = attachmentFiles - imageFiles.toSet()
     GlassPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Red.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
-                Icon(if (imageFiles.isNotEmpty()) Icons.Default.Image else Icons.Default.Archive, null, tint = Red, modifier = Modifier.size(18.dp))
+                Icon(if (imageFiles.isNotEmpty()) Icons.Default.Image else if (documentFiles.isNotEmpty()) Icons.Default.Description else Icons.Default.Archive, null, tint = Red, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -264,8 +269,19 @@ private fun MemoryCard(memory: Memory) {
                         if (imageFiles.size > 4) Text("+${imageFiles.size - 4}", color = Red, modifier = Modifier.align(Alignment.CenterVertically))
                     }
                 }
+                if (documentFiles.isNotEmpty()) {
+                    Spacer(Modifier.height(9.dp))
+                    documentFiles.forEach { file ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
+                            Icon(Icons.Default.Description, contentDescription = null, tint = Red, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(7.dp))
+                            Text(file.name, color = Color(0xFFD7CDD2), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
-                Text(SimpleDateFormat("dd MMM · HH:mm", Locale.getDefault()).format(Date(memory.createdAt)).uppercase() + if (imageFiles.isNotEmpty()) "  •  ${imageFiles.size} IMAGES" else "", color = Red.copy(alpha = .85f), fontSize = 9.sp, letterSpacing = 1.sp)
+                val attachmentCount = attachmentFiles.size
+                Text(SimpleDateFormat("dd MMM · HH:mm", Locale.getDefault()).format(Date(memory.createdAt)).uppercase() + if (attachmentCount > 0) "  •  $attachmentCount ATTACHMENTS" else "", color = Red.copy(alpha = .85f), fontSize = 9.sp, letterSpacing = 1.sp)
             }
         }
     }
@@ -285,10 +301,14 @@ private fun EmptyState(onCapture: () -> Unit) {
 }
 
 @Composable
-private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>) -> Unit) {
+private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>, List<Uri>) -> Unit) {
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var selectedDocuments by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        selectedDocuments = (selectedDocuments + uris).distinct()
+    }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         selectedImages = (selectedImages + uris).distinct()
     }
@@ -305,11 +325,16 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
                     Spacer(Modifier.width(8.dp))
                     Text(if (selectedImages.isEmpty()) "AÑADIR IMÁGENES" else "${selectedImages.size} IMÁGENES SELECCIONADAS", color = Color.White)
                 }
-                if (selectedImages.isNotEmpty()) Text("Las imágenes se guardarán de forma privada en este dispositivo.", color = Muted, fontSize = 11.sp)
+                OutlinedButton(onClick = { documentPicker.launch(arrayOf("application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Description, contentDescription = null, tint = Red)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (selectedDocuments.isEmpty()) "AÑADIR PDF / DOCUMENTOS" else "${selectedDocuments.size} DOCUMENTOS SELECCIONADOS", color = Color.White)
+                }
+                if (selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty()) Text("Los archivos se guardarán de forma privada en este dispositivo.", color = Muted, fontSize = 11.sp)
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages) }) {
+            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages, selectedDocuments) }) {
                 Text("GUARDAR", color = Red, letterSpacing = 1.sp)
             }
         },
@@ -317,17 +342,24 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
     )
 }
 
-private fun copyImagesToPrivateStorage(context: Context, uris: List<Uri>): String {
+private fun copyUrisToPrivateStorage(context: Context, uris: List<Uri>, category: String): String {
     if (uris.isEmpty()) return ""
-    val directory = File(context.filesDir, "memories/images").apply { mkdirs() }
+    val directory = File(context.filesDir, "memories/$category").apply { mkdirs() }
     return uris.mapNotNull { uri ->
         runCatching {
-            val extension = context.contentResolver.getType(uri)?.substringAfter("/")?.substringBefore(";")
-                ?.takeIf { it.matches(Regex("[A-Za-z0-9]{2,5}")) } ?: "jpg"
-            val destination = File(directory, "image_${System.currentTimeMillis()}_${(0..9999).random()}.$extension")
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                destination.outputStream().use { output -> input.copyTo(output) }
+            val mime = context.contentResolver.getType(uri).orEmpty()
+            val extension = when (mime) {
+                "application/pdf" -> "pdf"
+                "text/plain" -> "txt"
+                "application/msword" -> "doc"
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
+                "image/png" -> "png"
+                "image/webp" -> "webp"
+                "image/jpeg" -> "jpg"
+                else -> mime.substringAfter("/", "").substringBefore(";").takeIf { it.matches(Regex("[A-Za-z0-9]{2,5}")) } ?: if (category == "images") "jpg" else "file"
             }
+            val destination = File(directory, "${category}_${System.currentTimeMillis()}_${(0..9999).random()}.$extension")
+            context.contentResolver.openInputStream(uri)?.use { input -> destination.outputStream().use { output -> input.copyTo(output) } }
             destination.absolutePath.takeIf { destination.exists() && destination.length() > 0 }
         }.getOrNull()
     }.joinToString("\n")
