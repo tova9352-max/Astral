@@ -4,6 +4,9 @@ import android.os.Bundle
 import android.content.Context
 import android.net.Uri
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.media.MediaController
+import android.widget.VideoView
 import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +37,8 @@ import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
