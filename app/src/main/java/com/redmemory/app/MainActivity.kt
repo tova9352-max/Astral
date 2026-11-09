@@ -82,9 +82,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
     var showCapture by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf("HOME") }
-    val filtered = remember(memories, search) {
-        if (search.isBlank()) memories else memories.filter {
-            it.title.contains(search, true) || it.content.contains(search, true) || it.attachments.contains(search, true)
+    var selectedCategory by remember { mutableStateOf("ALL") }
+    val filtered = remember(memories, search, selectedCategory) {
+        memories.filter { memory ->
+            val matchesSearch = search.isBlank() || memory.title.contains(search, true) || memory.content.contains(search, true) || memory.attachments.contains(search, true)
+            val matchesCategory = selectedCategory == "ALL" || memory.category == selectedCategory
+            matchesSearch && matchesCategory
         }
     }
 
@@ -165,6 +168,25 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         )
                     }
                     item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            listOf("ALL", "GENERAL", "PERSONAL", "WORK", "IDEAS", "STUDY").forEach { category ->
+                                FilterChip(
+                                    selected = selectedCategory == category,
+                                    onClick = { selectedCategory = category },
+                                    label = { Text(when(category) {
+                                        "ALL" -> "TODO"; "GENERAL" -> "GENERAL"; "PERSONAL" -> "PERSONAL"
+                                        "WORK" -> "TRABAJO"; "IDEAS" -> "IDEAS"; else -> "ESTUDIO"
+                                    }, fontSize = 9.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Red.copy(alpha = .18f),
+                                        selectedLabelColor = Red,
+                                        labelColor = Muted
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(if (search.isBlank()) "RECENT MEMORIES" else "SEARCH RESULTS", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.8.sp)
                             Text("${filtered.size} ITEMS", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
@@ -198,12 +220,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
             if (showCapture) {
                 CaptureDialog(
                     onDismiss = { showCapture = false },
-                    onSave = { title, body, imageUris, documentUris ->
+                    onSave = { title, body, imageUris, documentUris, category ->
                         scope.launch {
                             val savedImages = copyUrisToPrivateStorage(context, imageUris, "images")
                             val savedDocuments = copyUrisToPrivateStorage(context, documentUris, "documents")
                             val allAttachments = listOf(savedImages, savedDocuments).filter { it.isNotBlank() }.joinToString("\n")
-                            dao.insert(Memory(title = title, content = body, attachments = allAttachments))
+                            dao.insert(Memory(title = title, content = body, attachments = allAttachments, category = category))
                         }
                         showCapture = false
                     }
@@ -345,6 +367,10 @@ private fun MemoryCard(memory: Memory) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(memory.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(5.dp))
+                StatPill(when(memory.category) {
+                    "PERSONAL" -> "PERSONAL"; "WORK" -> "TRABAJO"; "IDEAS" -> "IDEAS"; "STUDY" -> "ESTUDIO"; else -> "GENERAL"
+                })
                 if (memory.content.isNotBlank()) {
                     Spacer(Modifier.height(4.dp))
                     Text(memory.content, color = Muted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -391,11 +417,12 @@ private fun EmptyState(onCapture: () -> Unit) {
 }
 
 @Composable
-private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>, List<Uri>) -> Unit) {
+private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>, List<Uri>, String) -> Unit) {
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedDocuments by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var category by remember { mutableStateOf("GENERAL") }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         selectedDocuments = (selectedDocuments + uris).distinct()
     }
@@ -410,6 +437,27 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(title, { title = it }, label = { Text("Título") }, singleLine = true)
                 OutlinedTextField(body, { body = it }, label = { Text("¿Qué quieres recordar?") }, minLines = 3)
+                Text("CATEGORÍA", color = Muted, fontSize = 10.sp, letterSpacing = 1.3.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    listOf("GENERAL", "PERSONAL", "WORK", "IDEAS", "STUDY").chunked(3).forEach { rowCategories ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            rowCategories.forEach { option ->
+                                FilterChip(
+                                    selected = category == option,
+                                    onClick = { category = option },
+                                    label = { Text(when(option) {
+                                        "PERSONAL" -> "Personal"; "WORK" -> "Trabajo"; "IDEAS" -> "Ideas"; "STUDY" -> "Estudio"; else -> "General"
+                                    }, fontSize = 10.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Red.copy(alpha = .18f),
+                                        selectedLabelColor = Red,
+                                        labelColor = Muted
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
                 OutlinedButton(onClick = { imagePicker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Image, contentDescription = null, tint = Red)
                     Spacer(Modifier.width(8.dp))
@@ -424,7 +472,7 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages, selectedDocuments) }) {
+            TextButton(onClick = { if (title.isNotBlank() && (body.isNotBlank() || selectedImages.isNotEmpty() || selectedDocuments.isNotEmpty())) onSave(title.trim(), body.trim(), selectedImages, selectedDocuments, category) }) {
                 Text("GUARDAR", color = Red, letterSpacing = 1.sp)
             }
         },
