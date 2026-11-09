@@ -393,6 +393,41 @@ private fun MemoryCard(memory: Memory) {
                         if (imageFiles.size > 4) Text("+${imageFiles.size - 4}", color = Red, modifier = Modifier.align(Alignment.CenterVertically))
                     }
                 }
+                if (videoFiles.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    videoFiles.forEach { file ->
+                        GlassPanel(Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)).background(Red.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Red, modifier = Modifier.size(25.dp))
+                                }
+                                Spacer(Modifier.width(9.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(file.name, color = Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(formatVideoDuration(file) + "  •  VIDEO", color = Muted, fontSize = 9.sp)
+                                }
+                                TextButton(onClick = { playingVideo = if (playingVideo == file.absolutePath) null else file.absolutePath }) {
+                                    Text(if (playingVideo == file.absolutePath) "CERRAR" else "VER", color = Red, fontSize = 10.sp)
+                                }
+                            }
+                            if (playingVideo == file.absolutePath) {
+                                Spacer(Modifier.height(8.dp))
+                                AndroidView(
+                                    factory = { viewContext ->
+                                        VideoView(viewContext).apply {
+                                            val controller = MediaController(viewContext)
+                                            controller.setAnchorView(this)
+                                            setMediaController(controller)
+                                            setVideoPath(file.absolutePath)
+                                            setOnPreparedListener { player -> player.isLooping = false; start() }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(190.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 if (documentFiles.isNotEmpty()) {
                     Spacer(Modifier.height(9.dp))
                     documentFiles.forEach { file ->
