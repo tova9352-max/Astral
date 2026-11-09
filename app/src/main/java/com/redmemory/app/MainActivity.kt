@@ -312,7 +312,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
 private fun ModuleHero(tab: String, count: Int) {
     GlassPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-            Text(if (tab == "MEMORIES") "MEMORY ARCHIVE" else if (tab == "CONNECTIONS") "NEURAL CONNECTIONS" else "PRIVATE VAULT",
+            Text(if (tab == "MEMORIES") "MEMORY ARCHIVE" else if (tab == "TIMELINE") "MEMORY TIMELINE" else if (tab == "CONNECTIONS") "NEURAL CONNECTIONS" else "PRIVATE VAULT",
                 color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
             Spacer(Modifier.height(7.dp))
             Text(
