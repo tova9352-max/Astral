@@ -12,8 +12,8 @@ android {
         applicationId = "com.redmemory.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0.0-alpha06"
+        versionCode = 7
+        versionName = "1.0.0-alpha07"
     }
     buildFeatures { compose = true }
     compileOptions {
