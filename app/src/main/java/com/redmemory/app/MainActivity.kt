@@ -198,6 +198,17 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         }
                     }
                     item {
+                        Row(Modifier.fillMaxWidth()) {
+                            FilterChip(
+                                selected = favoritesOnly,
+                                onClick = { favoritesOnly = !favoritesOnly },
+                                label = { Text(if (favoritesOnly) "MOSTRANDO FAVORITOS" else "SOLO FAVORITOS", fontSize = 10.sp) },
+                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(15.dp)) },
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Red.copy(alpha = .18f), selectedLabelColor = Red, labelColor = Muted)
+                            )
+                        }
+                    }
+                    item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(if (search.isBlank()) "RECENT MEMORIES" else "SEARCH RESULTS", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.8.sp)
                             Text("${filtered.size} ITEMS", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
