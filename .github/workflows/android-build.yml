@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - 'RED-MEMORY-alpha01-source.zip'
+      - 'app/**'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
 permissions:
@@ -34,18 +37,13 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Extract source project
-        run: |
-          mkdir -p source
-          unzip -q RED-MEMORY-alpha01-source.zip -d source
-
       - name: Build debug APK
-        run: gradle -p source/RED-MEMORY :app:assembleDebug --no-daemon
+        run: gradle :app:assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RED-MEMORY-alpha01-debug-apk
-          path: source/RED-MEMORY/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
