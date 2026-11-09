@@ -460,17 +460,21 @@ private fun EmptyState(onCapture: () -> Unit) {
 }
 
 @Composable
-private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>, List<Uri>, String) -> Unit) {
+private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>, List<Uri>, List<Uri>, String) -> Unit) {
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedDocuments by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var selectedVideos by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var category by remember { mutableStateOf("GENERAL") }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         selectedDocuments = (selectedDocuments + uris).distinct()
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         selectedImages = (selectedImages + uris).distinct()
+    }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        selectedVideos = (selectedVideos + uris).distinct()
     }
     AlertDialog(
         onDismissRequest = onDismiss,
