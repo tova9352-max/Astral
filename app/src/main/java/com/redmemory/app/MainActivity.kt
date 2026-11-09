@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -61,6 +62,8 @@ import androidx.room.Room
 import com.redmemory.app.data.Memory
 import com.redmemory.app.data.MemoryDatabase
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -227,10 +230,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                     onDismiss = { showCapture = false },
                     onSave = { title, body, imageUris, documentUris, videoUris, category ->
                         scope.launch {
-                            val savedImages = copyUrisToPrivateStorage(context, imageUris, "images")
-                            val savedDocuments = copyUrisToPrivateStorage(context, documentUris, "documents")
-                            val savedVideos = copyUrisToPrivateStorage(context, videoUris, "videos")
-                            val allAttachments = listOf(savedImages, savedDocuments, savedVideos).filter { it.isNotBlank() }.joinToString("\n")
+                            val allAttachments = withContext(Dispatchers.IO) {
+                                val savedImages = copyUrisToPrivateStorage(context, imageUris, "images")
+                                val savedDocuments = copyUrisToPrivateStorage(context, documentUris, "documents")
+                                val savedVideos = copyUrisToPrivateStorage(context, videoUris, "videos")
+                                listOf(savedImages, savedDocuments, savedVideos).filter { it.isNotBlank() }.joinToString("\n")
+                            }
                             dao.insert(Memory(title = title, content = body, attachments = allAttachments, category = category))
                         }
                         showCapture = false
@@ -370,7 +375,7 @@ private fun MemoryCard(memory: Memory) {
     GlassPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Red.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
-                Icon(if (imageFiles.isNotEmpty()) Icons.Default.Image else if (documentFiles.isNotEmpty()) Icons.Default.Description else Icons.Default.Archive, null, tint = Red, modifier = Modifier.size(18.dp))
+                Icon(if (imageFiles.isNotEmpty()) Icons.Default.Image else if (videoFiles.isNotEmpty()) Icons.Default.VideoLibrary else if (documentFiles.isNotEmpty()) Icons.Default.Description else Icons.Default.Archive, null, tint = Red, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
