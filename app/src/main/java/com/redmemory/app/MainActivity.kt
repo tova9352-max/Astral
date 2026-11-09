@@ -527,6 +527,45 @@ private fun EmptyState(onCapture: () -> Unit) {
 }
 
 @Composable
+private fun EditMemoryDialog(memory: Memory, onDismiss: () -> Unit, onSave: (String, String, String) -> Unit) {
+    var title by remember(memory.id) { mutableStateOf(memory.title) }
+    var content by remember(memory.id) { mutableStateOf(memory.content) }
+    var category by remember(memory.id) { mutableStateOf(memory.category) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF171317),
+        title = { Text("EDITAR RECUERDO", color = Color.White, letterSpacing = 1.3.sp, fontSize = 14.sp) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Título") }, singleLine = true)
+                OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text("Contenido") }, minLines = 3)
+                Text("CATEGORÍA", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    listOf("GENERAL", "PERSONAL", "WORK", "IDEAS", "STUDY").chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            row.forEach { option ->
+                                FilterChip(
+                                    selected = category == option,
+                                    onClick = { category = option },
+                                    label = { Text(when(option) { "PERSONAL" -> "Personal"; "WORK" -> "Trabajo"; "IDEAS" -> "Ideas"; "STUDY" -> "Estudio"; else -> "General" }, fontSize = 10.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Red.copy(alpha = .18f), selectedLabelColor = Red, labelColor = Muted)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (title.isNotBlank()) onSave(title.trim(), content.trim(), category) }) {
+                Text("GUARDAR CAMBIOS", color = Red)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCELAR", color = Muted) } }
+    )
+}
+
+@Composable
 private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<Uri>, List<Uri>, List<Uri>, String) -> Unit) {
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
