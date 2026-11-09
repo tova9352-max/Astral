@@ -170,8 +170,10 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         }
                     }
                     item {
-                        if (selectedTab == "HOME") MemoryCore(memories.size)
-                        else ModuleHero(selectedTab, memories.size)
+                        if (selectedTab == "HOME") {
+                            MemoryCore(memories.size)
+                            HomeStats(memories)
+                        } else ModuleHero(selectedTab, memories.size)
                     }
                     if (selectedTab == "HOME" || selectedTab == "MEMORIES") {
                     item {
@@ -189,7 +191,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         )
                     }
                     item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
                             listOf("ALL", "GENERAL", "PERSONAL", "WORK", "IDEAS", "STUDY").forEach { category ->
                                 FilterChip(
                                     selected = selectedCategory == category,
@@ -305,6 +307,36 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun HomeStats(memories: List<Memory>) {
+    val favoriteCount = memories.count { it.isFavorite }
+    val attachmentCount = memories.sumOf { memory ->
+        memory.attachments.split("\\n").count { it.isNotBlank() }
+    }
+    val categoryCount = memories.map { it.category }.distinct().size
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        HomeMetric(value = memories.size.toString().padStart(2, '0'), label = "RECUERDOS", modifier = Modifier.weight(1f))
+        HomeMetric(value = favoriteCount.toString().padStart(2, '0'), label = "FAVORITOS", modifier = Modifier.weight(1f))
+        HomeMetric(value = attachmentCount.toString().padStart(2, '0'), label = "ARCHIVOS", modifier = Modifier.weight(1f))
+    }
+    if (memories.isNotEmpty()) {
+        Text("$categoryCount CATEGORÍAS EN USO", color = Muted, fontSize = 9.sp, letterSpacing = 1.2.sp,
+            modifier = Modifier.fillMaxWidth().padding(start = 3.dp, top = 1.dp))
+    }
+}
+
+@Composable
+private fun HomeMetric(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier.clip(RoundedCornerShape(17.dp))
+        .background(Brush.linearGradient(listOf(Color(0xCC24171D), Color(0xAA121014))))
+        .border(1.dp, Color.White.copy(alpha = .09f), RoundedCornerShape(17.dp))
+        .padding(horizontal = 10.dp, vertical = 12.dp)) {
+        Text(value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = .5.sp)
+        Spacer(Modifier.height(3.dp))
+        Text(label, color = Red.copy(alpha = .9f), fontSize = 8.sp, letterSpacing = .8.sp, maxLines = 1)
     }
 }
 
