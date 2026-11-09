@@ -3,6 +3,9 @@ name: RED MEMORY Android APK
 on:
   push:
     branches: [main]
+    paths:
+      - 'RED-MEMORY-alpha01-source.zip.b64'
+      - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
 permissions:
