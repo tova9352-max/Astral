@@ -138,7 +138,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                                 icon = { Icon(when(tab) {
                                     "MEMORIES" -> Icons.Default.Archive
                                     "CONNECTIONS" -> Icons.Default.Hub
-                                    "TIMELINE" -> Icons.Default.CalendarToday
+                                    "TIMELINE" -> Icons.Default.DateRange
                                     "VAULT" -> Icons.Default.Lock
                                     else -> Icons.Default.Search
                                 }, contentDescription = tab) },
