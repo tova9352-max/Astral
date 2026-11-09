@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -76,6 +77,7 @@ class MainActivity : ComponentActivity() {
 private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
     val memories by dao.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var showCapture by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf("HOME") }
@@ -186,7 +188,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                     onDismiss = { showCapture = false },
                     onSave = { title, body, imageUris ->
                         scope.launch {
-                            val savedPaths = copyImagesToPrivateStorage(this@MainActivity, imageUris)
+                            val savedPaths = copyImagesToPrivateStorage(context, imageUris)
                             dao.insert(Memory(title = title, content = body, attachments = savedPaths))
                         }
                         showCapture = false
