@@ -15,4 +15,7 @@ interface MemoryDao {
 
     @Insert
     suspend fun insert(memory: Memory)
+
+    @Query("UPDATE memories SET isFavorite = :favorite WHERE id = :memoryId")
+    suspend fun setFavorite(memoryId: Long, favorite: Boolean)
 }
