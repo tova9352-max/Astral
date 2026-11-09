@@ -5,8 +5,8 @@ import android.content.Context
 import android.net.Uri
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.media.MediaController
 import android.widget.VideoView
+import android.widget.MediaController
 import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
