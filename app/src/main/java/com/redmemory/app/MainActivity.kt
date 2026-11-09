@@ -68,6 +68,10 @@ import com.redmemory.app.data.MemoryDatabase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -573,6 +577,10 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
     var selectedDocuments by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedVideos by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var category by remember { mutableStateOf("GENERAL") }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isReadingImages by remember { mutableStateOf(false) }
+    var ocrMessage by remember { mutableStateOf("") }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         selectedDocuments = (selectedDocuments + uris).distinct()
     }
@@ -615,6 +623,46 @@ private fun CaptureDialog(onDismiss: () -> Unit, onSave: (String, String, List<U
                     Icon(Icons.Default.Image, contentDescription = null, tint = Red)
                     Spacer(Modifier.width(8.dp))
                     Text(if (selectedImages.isEmpty()) "AÑADIR IMÁGENES" else "${selectedImages.size} IMÁGENES SELECCIONADAS", color = Color.White)
+                }
+                if (selectedImages.isNotEmpty()) {
+                    OutlinedButton(
+                        onClick = {
+                            if (!isReadingImages) scope.launch {
+                                isReadingImages = true
+                                ocrMessage = ""
+                                val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                                try {
+                                    val extracted = withContext(Dispatchers.IO) {
+                                        selectedImages.mapNotNull { uri ->
+                                            runCatching {
+                                                recognizer.process(InputImage.fromFilePath(context, uri)).await().text
+                                                    .takeIf { it.isNotBlank() }
+                                            }.getOrNull()
+                                        }
+                                    }
+                                    if (extracted.isNotEmpty()) {
+                                        body = listOf(body.trim(), extracted.joinToString("\n\n"))
+                                            .filter { it.isNotBlank() }.joinToString("\n\n")
+                                        ocrMessage = "TEXTO EXTRAÍDO Y AÑADIDO"
+                                    } else {
+                                        ocrMessage = "NO SE ENCONTRÓ TEXTO LEGIBLE"
+                                    }
+                                } catch (_: Exception) {
+                                    ocrMessage = "NO SE PUDO LEER UNA O MÁS IMÁGENES"
+                                } finally {
+                                    recognizer.close()
+                                    isReadingImages = false
+                                }
+                            }
+                        },
+                        enabled = !isReadingImages,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (isReadingImages) "LEYENDO TEXTO..." else "EXTRAER TEXTO DE IMÁGENES", color = Red)
+                    }
+                    if (ocrMessage.isNotBlank()) {
+                        Text(ocrMessage, color = if (ocrMessage.contains("AÑADIDO")) Color(0xFF48D597) else Muted, fontSize = 10.sp)
+                    }
                 }
                 OutlinedButton(onClick = { documentPicker.launch(arrayOf("application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Description, contentDescription = null, tint = Red)
