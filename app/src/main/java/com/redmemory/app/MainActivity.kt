@@ -225,11 +225,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
             if (showCapture) {
                 CaptureDialog(
                     onDismiss = { showCapture = false },
-                    onSave = { title, body, imageUris, documentUris, category ->
+                    onSave = { title, body, imageUris, documentUris, videoUris, category ->
                         scope.launch {
                             val savedImages = copyUrisToPrivateStorage(context, imageUris, "images")
                             val savedDocuments = copyUrisToPrivateStorage(context, documentUris, "documents")
-                            val allAttachments = listOf(savedImages, savedDocuments).filter { it.isNotBlank() }.joinToString("\n")
+                            val savedVideos = copyUrisToPrivateStorage(context, videoUris, "videos")
+                            val allAttachments = listOf(savedImages, savedDocuments, savedVideos).filter { it.isNotBlank() }.joinToString("\n")
                             dao.insert(Memory(title = title, content = body, attachments = allAttachments, category = category))
                         }
                         showCapture = false
@@ -363,7 +364,9 @@ private fun MemoryCard(memory: Memory) {
         memory.attachments.split("\n").filter { it.isNotBlank() }.map { File(it) }.filter { it.exists() }
     }
     val imageFiles = attachmentFiles.filter { it.extension.lowercase() in listOf("jpg", "jpeg", "png", "webp", "gif", "heic") }
-    val documentFiles = attachmentFiles - imageFiles.toSet()
+    val videoFiles = attachmentFiles.filter { it.extension.lowercase() in listOf("mp4", "mkv", "webm", "3gp", "mov", "avi", "m4v") }
+    val documentFiles = attachmentFiles - imageFiles.toSet() - videoFiles.toSet()
+    var playingVideo by remember { mutableStateOf<String?>(null) }
     GlassPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Red.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
