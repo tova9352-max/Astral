@@ -265,6 +265,36 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                     }
                 )
             }
+            memoryToEdit?.let { memory ->
+                EditMemoryDialog(
+                    memory = memory,
+                    onDismiss = { memoryToEdit = null },
+                    onSave = { title, content, category ->
+                        scope.launch { dao.updateDetails(memory.id, title, content, category) }
+                        memoryToEdit = null
+                    }
+                )
+            }
+            memoryToDelete?.let { memory ->
+                AlertDialog(
+                    onDismissRequest = { memoryToDelete = null },
+                    containerColor = Color(0xFF171317),
+                    title = { Text("ELIMINAR RECUERDO", color = Color.White) },
+                    text = { Text("Se eliminará este recuerdo y sus archivos adjuntos del dispositivo. Esta acción no se puede deshacer.", color = Muted) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    memory.attachments.split("\\n").filter { it.isNotBlank() }.forEach { File(it).delete() }
+                                }
+                                dao.delete(memory.id)
+                            }
+                            memoryToDelete = null
+                        }) { Text("ELIMINAR", color = Red) }
+                    },
+                    dismissButton = { TextButton(onClick = { memoryToDelete = null }) { Text("CANCELAR", color = Muted) } }
+                )
+            }
         }
     }
 }
