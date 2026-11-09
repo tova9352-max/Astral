@@ -145,7 +145,11 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                             }
                         }
                     }
-                    item { MemoryCore(memories.size) }
+                    item {
+                        if (selectedTab == "HOME") MemoryCore(memories.size)
+                        else ModuleHero(selectedTab, memories.size)
+                    }
+                    if (selectedTab == "HOME" || selectedTab == "MEMORIES") {
                     item {
                         OutlinedTextField(
                             value = search, onValueChange = { search = it },
@@ -170,6 +174,13 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         item { EmptyState(onCapture = { showCapture = true }) }
                     } else {
                         items(filtered, key = { it.id }) { memory -> MemoryCard(memory) }
+                    }
+                    }
+                    if (selectedTab == "CONNECTIONS") {
+                        item { ConnectionsPreview(memories.size) }
+                    }
+                    if (selectedTab == "VAULT") {
+                        item { VaultPreview() }
                     }
                     item {
                         GlassPanel(Modifier.fillMaxWidth()) {
@@ -199,6 +210,85 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ModuleHero(tab: String, count: Int) {
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+            Text(if (tab == "MEMORIES") "MEMORY ARCHIVE" else if (tab == "CONNECTIONS") "NEURAL CONNECTIONS" else "PRIVATE VAULT",
+                color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            Spacer(Modifier.height(7.dp))
+            Text(
+                when (tab) {
+                    "MEMORIES" -> "Tu colección personal, organizada en un solo lugar."
+                    "CONNECTIONS" -> "Un espacio para descubrir cómo se relacionan tus recuerdos."
+                    else -> "Tu espacio privado está preparado para la siguiente fase de seguridad."
+                },
+                color = Muted, fontSize = 11.sp, lineHeight = 17.sp
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatPill(if (tab == "MEMORIES") "$count RECUERDOS" else if (tab == "CONNECTIONS") "RED PERSONAL" else "LOCAL FIRST")
+                StatPill(if (tab == "VAULT") "CLOUD OPCIONAL" else "CORE ACTIVO")
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatPill(label: String) {
+    Box(Modifier.clip(CircleShape).background(Red.copy(alpha = .10f))
+        .border(1.dp, Red.copy(alpha = .25f), CircleShape).padding(horizontal = 10.dp, vertical = 7.dp)) {
+        Text(label, color = Red, fontSize = 8.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun ConnectionsPreview(count: Int) {
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Text("MEMORY NETWORK", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.fillMaxWidth().height(210.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val c = center
+                val nodes = listOf(
+                    Offset(c.x, c.y), Offset(c.x - 92.dp.toPx(), c.y - 48.dp.toPx()),
+                    Offset(c.x + 90.dp.toPx(), c.y - 54.dp.toPx()), Offset(c.x - 72.dp.toPx(), c.y + 65.dp.toPx()),
+                    Offset(c.x + 76.dp.toPx(), c.y + 68.dp.toPx())
+                )
+                nodes.drop(1).forEach { drawLine(Red.copy(alpha = .35f), c, it, strokeWidth = 1.5.dp.toPx()) }
+                nodes.forEachIndexed { index, point ->
+                    val radius = if (index == 0) 17.dp.toPx() else 9.dp.toPx()
+                    drawCircle(if (index == 0) Red else Color(0xFFFF7180), radius + 8.dp.toPx(), point, alpha = .12f)
+                    drawCircle(if (index == 0) Red else Color(0xFFFF7180), radius, point)
+                    drawCircle(Color.White.copy(alpha = .8f), radius * .28f, point)
+                }
+            }
+        }
+        Text(if (count == 0) "Guarda recuerdos para comenzar a construir tu red." else "La visualización de relaciones inteligentes llegará en una próxima actualización.",
+            color = Muted, fontSize = 11.sp, lineHeight = 17.sp)
+        Spacer(Modifier.height(8.dp))
+        StatPill("$count NODOS DE MEMORIA")
+    }
+}
+
+@Composable
+private fun VaultPreview() {
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(112.dp).background(Brush.radialGradient(listOf(Red.copy(alpha = .28f), Color.Transparent)), CircleShape),
+                contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Lock, contentDescription = null, tint = Red, modifier = Modifier.size(48.dp))
+            }
+        }
+        Text("PRIVATE SPACE", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        Spacer(Modifier.height(7.dp))
+        Text("El módulo Vault está en desarrollo. La protección con biometría y el cifrado de archivos se incorporarán antes de habilitar el almacenamiento privado.",
+            color = Muted, fontSize = 11.sp, lineHeight = 17.sp)
+        Spacer(Modifier.height(14.dp))
+        StatPill("SEGURIDAD EN DESARROLLO")
     }
 }
 
