@@ -285,7 +285,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                         TextButton(onClick = {
                             scope.launch {
                                 withContext(Dispatchers.IO) {
-                                    memory.attachments.split("\\n").filter { it.isNotBlank() }.forEach { File(it).delete() }
+                                    memory.attachments.split("\n").filter { it.isNotBlank() }.forEach { File(it).delete() }
                                 }
                                 dao.delete(memory.id)
                             }
