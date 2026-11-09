@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -91,11 +93,12 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
     var search by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf("HOME") }
     var selectedCategory by remember { mutableStateOf("ALL") }
-    val filtered = remember(memories, search, selectedCategory) {
+    var favoritesOnly by remember { mutableStateOf(false) }
+    val filtered = remember(memories, search, selectedCategory, favoritesOnly) {
         memories.filter { memory ->
             val matchesSearch = search.isBlank() || memory.title.contains(search, true) || memory.content.contains(search, true) || memory.attachments.contains(search, true)
             val matchesCategory = selectedCategory == "ALL" || memory.category == selectedCategory
-            matchesSearch && matchesCategory
+            matchesSearch && matchesCategory && (!favoritesOnly || memory.isFavorite)
         }
     }
 
@@ -203,7 +206,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                     if (filtered.isEmpty()) {
                         item { EmptyState(onCapture = { showCapture = true }) }
                     } else {
-                        items(filtered, key = { it.id }) { memory -> MemoryCard(memory) }
+                        items(filtered, key = { it.id }) { memory -> MemoryCard(memory, onToggleFavorite = { scope.launch { dao.setFavorite(memory.id, !memory.isFavorite) } }) }
                     }
                     }
                     if (selectedTab == "CONNECTIONS") {
@@ -364,7 +367,7 @@ private fun GlassPanel(modifier: Modifier = Modifier, content: @Composable Colum
 }
 
 @Composable
-private fun MemoryCard(memory: Memory) {
+private fun MemoryCard(memory: Memory, onToggleFavorite: () -> Unit) {
     val attachmentFiles = remember(memory.attachments) {
         memory.attachments.split("\n").filter { it.isNotBlank() }.map { File(it) }.filter { it.exists() }
     }
@@ -446,6 +449,9 @@ private fun MemoryCard(memory: Memory) {
                 Spacer(Modifier.height(8.dp))
                 val attachmentCount = attachmentFiles.size
                 Text(SimpleDateFormat("dd MMM · HH:mm", Locale.getDefault()).format(Date(memory.createdAt)).uppercase() + if (attachmentCount > 0) "  •  $attachmentCount ATTACHMENTS" else "", color = Red.copy(alpha = .85f), fontSize = 9.sp, letterSpacing = 1.sp)
+            }
+            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(34.dp)) {
+                Icon(if (memory.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, contentDescription = if (memory.isFavorite) "Quitar de favoritos" else "Añadir a favoritos", tint = if (memory.isFavorite) Red else Muted)
             }
         }
     }
