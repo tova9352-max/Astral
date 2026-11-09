@@ -192,7 +192,7 @@ private fun RedMemoryApp(dao: com.redmemory.app.data.MemoryDao) {
                     }
                     item {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
-                            listOf("ALL", "GENERAL", "PERSONAL", "WORK", "IDEAS", "STUDY").forEach { category ->
+                            items(listOf("ALL", "GENERAL", "PERSONAL", "WORK", "IDEAS", "STUDY")) { category ->
                                 FilterChip(
                                     selected = selectedCategory == category,
                                     onClick = { selectedCategory = category },
